@@ -1,14 +1,14 @@
 using namespace std;
 
 class C {
-public:
 	double re, im;
+public:
 	C(double a, double b) {re = a; im = b;}
 	C(double a) {re = a; im = 0;}
 	C(){}
 
 	double abs() {return sqrt(re*re+im*im);}
-
+	
 	C operator+ (C &a) {
 		return C(a.re + re, a.im + im);
 	}
