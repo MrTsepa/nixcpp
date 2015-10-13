@@ -3,4 +3,6 @@ hw1/a.cpp
 
 *.out
 
+*~
+
 *.swp

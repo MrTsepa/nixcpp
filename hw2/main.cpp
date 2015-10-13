@@ -5,9 +5,9 @@ using namespace std;
 
 int main()
 {
-    S str2 = 'A';
-    S str3 = "B";
-    str3 += "C";
-    cout << str3+"D"+str2;
-    return 0;
+	S str1 = "Hello", str2 = 'a';
+	S str3 = "123" + str1;
+	str3 = str3 + "a";
+	cout << str3 << endl;
+	cout << str3.length();
 }
