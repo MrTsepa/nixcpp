@@ -35,14 +35,16 @@ public:
 			tmp[i + len] = obj.str()[i];
 		return S(tmp);
 	}
-//	friend S operator+(S&, S&);
-//	friend S operator+(const char*, S&);
-//	friend S operator+(S&, const char*);
 	S& operator+=(const S &obj){
-		*this = *this + obj;
-		return *this;
-	}	
-//	void operator+=(const char*);
+		S tmp = (*this) + obj;
+		len = tmp.length();
+		delete[] pStr;
+		pStr = new char[len];
+		for(int i = 0; i < len; i++){
+			pStr[i] = tmp[i];
+		}
+		return (*this);
+	}
 	
 	char& operator[](int i) {return pStr[i];}
 	char& operator[](int i) const{return pStr[i];}
@@ -70,49 +72,8 @@ S::S(const S &obj){
 		pStr[i] = obj.pStr[i];
 }
 
-//S operator+(S &obj1, S &obj2) {
-//	size_t len1 = obj1.len, len2 = obj2.len;
-//	S res(len1+len2);
-//	for (int i = 0; i < len1; i++){
-//		res[i] = obj1[i];
-//	}
-//	for (int i = len1; i < res.len; i++){
-//		res[i] = obj2[i - len1];
-//	}
-//	return res;
-//}
-//
-//S operator+(const char* str1, S &obj2) {
-//	size_t len1 = strlen(str1), len2 = obj2.len;
-//	S res(len1+len2);
-//	for (int i = 0; i < len1; i++)
-//		res[i] = str1[i];
-//	for (int i = len1; i < res.len; i++)
-//		res[i] = obj2[i - len1];
-//	return res;
-//}
-//
-//S operator+(S &obj1, const char* str2) {
-//	size_t len1 = obj1.len, len2 = strlen(str2);
-//	S res(len1+len2);
-//	for (int i = 0; i < len1; i++)
-//		res[i] = obj1[i];
-//	for (int i = len1; i < res.len; i++)
-//		res[i] = str2[i - len1];
-//	return res;
-//}
-//
-//S& S::operator+=(const S &obj){
-//	*this = *this + obj;
-//	return *this;
-//}
-//
-//void S::operator+=(const char* str){
-//	*this = *this + str;
-//}
-
 ostream& operator<<(ostream& os, const S &obj){
-	for (int i = 0; i < obj.len; i++)
-		os << obj.pStr[i];
+	if (obj.pStr) os << obj.pStr;
+	else os << "";
 	return os;
 }
