@@ -25,18 +25,15 @@ public:
 	S() {pStr = NULL; len = 0;}
 	
 	const char* str() const{return pStr;}
-	size_t length() {return len;}
+	size_t length() const{return len;}
 	
 	S operator+(const S &obj) const{
-		size_t len1 = len, len2 = obj.len;
-		S res(len1+len2);
-		for (int i = 0; i < len1; i++){
-			res[i] = pStr[i];
-		}
-		for (int i = len1; i < res.len; i++){
-			res[i] = obj[i - len1];
-		}
-		return res;
+		char* tmp = new char[len + obj.length()];
+		for (int i = 0; i < len; i++)
+			tmp[i] = pStr[i];
+		for (int i = 0; i < obj.length(); i++)
+			tmp[i + len] = obj.str()[i];
+		return S(tmp);
 	}
 //	friend S operator+(S&, S&);
 //	friend S operator+(const char*, S&);
