@@ -8,7 +8,7 @@ public:
 	C(){}
 
 	double abs() {return sqrt(re*re+im*im);}
-	
+
 	C operator+ (C &a) {
 		return C(a.re + re, a.im + im);
 	}
