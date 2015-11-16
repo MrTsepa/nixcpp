@@ -1,3 +1,4 @@
 *.o
 hw3/tree.exe
 *.exe
+*.out
