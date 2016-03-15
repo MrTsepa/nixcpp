@@ -37,6 +37,28 @@ public:
 template <class T>
 class shared_ptr {
 	Storage<T> * storage;
+	void delete_self() {
+		if (storage->use_count == 1 or storage->use_count == 0) {
+			if (storage->ptr != nullptr)
+				delete storage->ptr;
+			storage->ptr = nullptr;
+			storage->use_count = 0;
+			if (storage->weak_arr != nullptr) {
+				for (auto it = storage->weak_arr->begin();
+				     it != storage->weak_arr->end(); it++) {
+					(*it)->master_storage = nullptr;
+				}
+				storage->weak_arr->clear();
+				delete storage->weak_arr;
+				storage->weak_arr = nullptr;
+			}
+			delete storage;
+		}
+		else if (storage->use_count > 1){
+			storage->use_count--;
+		}
+	}
+
 public:
 	shared_ptr() {
 		storage = new Storage<T>(nullptr);
@@ -47,11 +69,13 @@ public:
 	}
 		//создание объекта, владеющего pointer
 	shared_ptr(shared_ptr<T> &&other) {
+//		delete_self();
 		storage = other.storage;
 		other.storage = new Storage<T>;
 	}
 		//rvalue копирование
 	shared_ptr(shared_ptr<T> const &other){
+//		delete_self();
 		if (other.storage->ptr == nullptr) {
 			storage = new Storage<T>(nullptr);
 		}
@@ -62,61 +86,20 @@ public:
 	}
 		//конструктор копирования, реализует равные права на владения обоими shared_ptr
 	~shared_ptr() {
-		if (storage->use_count == 1) {
-			delete storage->ptr;
-			storage->ptr = nullptr;
-			storage->use_count = 0;
-			for (auto it = storage->weak_arr->begin();
-			     it != storage->weak_arr->end(); it++) {
-				(*it)->master_storage = nullptr;
-			}
-			storage->weak_arr->clear();
-		}
-		else if (storage->use_count > 1){
-			storage->use_count--;
-			storage->weak_arr = nullptr;
-		}
+		delete_self();
 	}
 		//разрушение объекта, которым владеет этот shared_ptr, если он больше никому не принадлежит
 	T& operator * () {return *(storage->ptr);}             //операторы разыменовывания
 	T* operator -> () {return storage->ptr;}
 	shared_ptr& operator =(shared_ptr<T> &&other) {
-		if (*this) {
-			if (storage->use_count == 1) {
-				delete storage->ptr;
-				storage->ptr = nullptr;
-				storage->use_count = 0;
-				for (auto it = storage->weak_arr->begin();
-				     it != storage->weak_arr->end(); it++) {
-					(*it)->master_storage = nullptr;
-				}
-				storage->weak_arr->clear();
-			}
-			else {
-				storage->use_count--;
-			}
-		}
+		delete_self();
 		storage = other.storage;
 		other.storage = new Storage<T>;
 		return *this;
 	}
 		//присваивание rvalue
 	shared_ptr& operator =(shared_ptr<T> const &other) {
-		if (*this) {
-			if (storage->use_count == 1) {
-				delete storage->ptr;
-				storage->ptr = nullptr;
-				storage->use_count = 0;
-				for (auto it = storage->weak_arr->begin();
-				     it != storage->weak_arr->end(); it++) {
-					(*it)->master_storage = nullptr;
-				}
-				storage->weak_arr->clear();
-			}
-			else {
-				storage->use_count--;
-			}
-		}
+		delete_self();
 		if (other.storage->ptr == nullptr) {
 			storage = new Storage<T>(nullptr);
 			return *this;
@@ -127,19 +110,7 @@ public:
 	}
 		//присваивание (с разделением прав)
 	void reset(T *pointer = nullptr) {
-		if (storage->use_count == 1) {
-			delete storage->ptr;
-			storage->ptr = nullptr;
-			storage->use_count = 0;
-			for (auto it = storage->weak_arr->begin();
-			     it != storage->weak_arr->end(); it++) {
-				(*it)->master_storage = nullptr;
-			}
-			storage->weak_arr->clear();
-		}
-		else {
-			storage->use_count--;
-		}
+		delete_self();
 		storage = new Storage<T>(pointer);
 	}
 		//смена владения с разрушением по необходимости предыдущего объекта
@@ -149,7 +120,7 @@ public:
 	}
 		//необходимо поменять местами объекты, которыми владеют this и x
 	operator bool() {
-		return (storage->ptr != nullptr);
+		return (storage->ptr != nullptr and use_count() != 0);
 	}
 	//приведение к типу bool. true, если объект, которым владеем существует, false иначе
 	int use_count() {
@@ -171,6 +142,8 @@ class weak_ptr
 	void erase_self() {
 		if (master_storage == nullptr)
 			return;
+		if (master_storage->weak_arr == nullptr)
+			return;
 		master_storage->weak_arr->erase(std::find(master_storage->weak_arr->begin(),
 						  master_storage->weak_arr->end(),
 						  this));
@@ -178,6 +151,8 @@ class weak_ptr
 	void push_self() {
 		if (master_storage == nullptr)
 			return;
+		if (master_storage->weak_arr == nullptr)
+			master_storage->weak_arr = new std::list<weak_ptr *>;
 		master_storage->weak_arr->push_back(this);
 	}
 
@@ -192,7 +167,7 @@ public:
 			return;
 		}
 		master_storage = other.master_storage;
-		master_storage->weak_arr->push_back(this);
+		push_self();
 	}
 
 	weak_ptr(weak_ptr && other) {
@@ -201,7 +176,7 @@ public:
 			return;
 		}
 		master_storage = other.master_storage;
-		master_storage->weak_arr->push_back(this);
+		push_self();
 		other.erase_self();
 		other.master_storage = nullptr;
 	}
@@ -209,7 +184,7 @@ public:
 	weak_ptr(shared_ptr<T> const &master) {
 		if (master.storage->ptr != nullptr) {
 			master_storage = master.storage;
-			master_storage->weak_arr->push_back(this);
+			push_self();
 		}
 		else
 			master_storage = nullptr;
@@ -229,10 +204,11 @@ public:
 		erase_self();
 		if (other.master_storage == nullptr) {
 			master_storage = nullptr;
-			return;
+			return *this;
 		}
 		master_storage = other.master_storage;
-		master_storage->weak_arr->push_back(this);
+		push_self();
+		return *this;
 	}
 
 	weak_ptr& operator = (weak_ptr && other) {
@@ -242,7 +218,7 @@ public:
 			return *this;
 		}
 		master_storage = other.master_storage;
-		master_storage->weak_arr->push_back(this);
+		push_self();
 		other.erase_self();
 		other.master_storage = nullptr;
 		return *this;
