@@ -37,6 +37,7 @@ public:
 template <class T>
 class shared_ptr {
 	Storage<T> * storage;
+
 	void delete_self() {
 		if (storage->use_count == 1 or storage->use_count == 0) {
 			if (storage->ptr != nullptr)
@@ -182,12 +183,13 @@ public:
 	}
 
 	weak_ptr(shared_ptr<T> const &master) {
-		if (master.storage->ptr != nullptr) {
-			master_storage = master.storage;
-			push_self();
-		}
-		else
+		if (master.storage->ptr == nullptr or
+				master.storage->use_count == 0) {
 			master_storage = nullptr;
+			return;
+		}
+		master_storage = master.storage;
+		push_self();
 	}
 		//создание weak_ptr, разделяющего владение с shared
 	~weak_ptr() {
@@ -200,6 +202,7 @@ public:
 			master_storage = nullptr;
 		}
 	}
+
 	weak_ptr& operator = (weak_ptr const & other) {
 		erase_self();
 		if (other.master_storage == nullptr) {
@@ -224,6 +227,18 @@ public:
 		return *this;
 	}
 
+	weak_ptr& operator = (shared_ptr<T> const &master) {
+		erase_self();
+		if (master.storage->ptr == nullptr or
+				master.storage->use_count == 0) {
+			master_storage = nullptr;
+			return *this;
+		}
+		master_storage = master.storage;
+		push_self();
+		return *this;
+	}
+
 	void swap (weak_ptr &other) {
 		erase_self();
 		other.erase_self();
@@ -245,11 +260,19 @@ public:
 	bool expired() {
 		if (master_storage == nullptr)
 			return true;
-		return (master_storage->ptr == nullptr);
+		if (master_storage->ptr == nullptr)
+			return true;
+		if (master_storage->use_count == 0)
+			return true;
+		if (master_storage->weak_arr == nullptr)
+			return true;
+		if (master_storage->weak_arr->size() == 0)
+			return true;
+		return false;
 	}
 		//проверка на валидность. true, если объект "испортился", false, если объект валиден
 	shared_ptr<T> lock() {
-		if (master_storage == nullptr)
+		if (expired())
 			return shared_ptr<T>(nullptr);
 		shared_ptr<T> tmp;
 		tmp.storage = master_storage;
